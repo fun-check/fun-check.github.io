@@ -3,8 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FunCheck — проверка на читы для Minecraft</title>
-<meta name="description" content="FunCheck — инструмент проверки клиентов Minecraft на запрещённое ПО.">
+<title>FunCheck (Fun Checker) — проверка на читы для Minecraft</title>
+<meta name="description" content="FunCheck (Fun Checker) — бесплатная проверка ПК и клиента Minecraft на читы одной командой в PowerShell. Сканирование процессов, инжектов и файлов игры, вердикт NO CHEAT DETECTED или CHEAT DETECTED.">
+<meta name="keywords" content="fun check, funcheck, fun checker, проверка на читы, чекер читов, чекер Minecraft, античит проверка, FunTime чекер, сканирование инжектов">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="author" content="FunCheck">
+<meta name="theme-color" content="#0a0508">
+<link rel="canonical" href="https://fun-check.github.io/">
+<!-- Яндекс.Вебмастер: вставь код подтверждения из настроек сайта -->
+<meta name="yandex-verification" content="ВСТАВЬ_КОД_ИЗ_ВЕБМАСТЕРА">
+<!-- Google Search Console (необязательно) -->
+<meta name="google-site-verification" content="">
+<!-- Open Graph / соцсети -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="FunCheck">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:title" content="FunCheck (Fun Checker) — проверка на читы для Minecraft">
+<meta property="og:description" content="Бесплатная проверка ПК и клиента Minecraft на читы одной командой в PowerShell. Вердикт NO CHEAT DETECTED / CHEAT DETECTED.">
+<meta property="og:url" content="https://fun-check.github.io/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FunCheck (Fun Checker) — проверка на читы для Minecraft">
+<meta name="twitter:description" content="Проверка ПК и клиента Minecraft на читы одной командой в PowerShell.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232dd4bf' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2 3 14h9l-1 8 10-12h-9l1-8z'/%3E%3C/svg%3E">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -154,7 +173,40 @@ tailwind.config = {
 
   #toast{ transition:opacity .3s, transform .3s; }
   #toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+            clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 </style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "FunCheck",
+  "alternateName": ["Fun Checker", "Fun Check", "фан чекер"],
+  "applicationCategory": "SecurityApplication",
+  "operatingSystem": "Windows 10, Windows 11",
+  "url": "https://fun-check.github.io/",
+  "inLanguage": "ru",
+  "description": "FunCheck (Fun Checker) — бесплатная проверка ПК и клиента Minecraft на читы одной командой в PowerShell: сканирование процессов, инжектов и файлов игры с вердиктом NO CHEAT DETECTED или CHEAT DETECTED.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "RUB" }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Безопасно ли это для моего компьютера?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Да. Сайт полностью безопасен: он ничего не устанавливает и не запрашивает данных, а FunCheck работает в режиме чтения — не изменяет файлы, не собирает пароли и не имеет доступа к аккаунтам. Команда отвечает за тот ПК, на котором её ввели, и не затрагивает другие компьютеры." } },
+    { "@type": "Question", "name": "Что именно проверяет чекер?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Запущенные процессы и загруженные DLL, внедрённые в процесс игры javaw.exe модули (инжекты), целостность файлов игры, содержимое папки .minecraft и mods, следы запуска в Prefetch и Recent files, а также попытки скрытия: спуф имён процессов, заморозку окон и прокидывание через виртуальные машины." } },
+    { "@type": "Question", "name": "Можно ли запустить проверку самостоятельно?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Да. Скопируй команду на сайте и вставь её в PowerShell, запущенный от имени администратора. Установка не требуется — проверка начинается сразу." } }
+  ]
+}
+</script>
 </head>
 
 <body id="top" class="font-sans antialiased overflow-x-hidden">
@@ -223,7 +275,7 @@ tailwind.config = {
       </div>
 
       <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.02]">
-        Fun <span class="text-acc">Check</span>
+        Fun <span class="text-acc">Check</span><span class="sr-only">er — проверка на читы для Minecraft</span>
       </h1>
 
       <p class="mt-5 text-xl md:text-2xl font-bold text-white leading-snug">
